@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<style>
+	table a:link {
+		color: #666;
+		font-weight: bold;
+		text-decoration: none;
+	}
+
+	table a:visited {
+		color: #999999;
+		font-weight: bold;
+		text-decoration: none;
+	}
+
+	table a:active,
+	table a:hover {
+		color: #bd5a35;
+		text-decoration: underline;
+	}
+
+	table {
+		font-family: Arial, Helvetica, sans-serif;
+		color: #666;
+		font-size: 12px;
+		text-shadow: 1px 1px 0px #fff;
+		background: #eaebec;
+		margin: 20px;
+		border: #ccc 1px solid;
+
+		-moz-border-radius: 3px;
+		-webkit-border-radius: 3px;
+		border-radius: 3px;
+
+		-moz-box-shadow: 0 1px 2px #d1d1d1;
+		-webkit-box-shadow: 0 1px 2px #d1d1d1;
+		box-shadow: 0 1px 2px #d1d1d1;
+	}
+
+	table th {
+		padding: 21px 25px 22px 25px;
+		border-top: 1px solid #fafafa;
+		border-bottom: 1px solid #e0e0e0;
+
+		background: #ededed;
+		background: -webkit-gradient(linear, left top, left bottom, from(#ededed), to(#ebebeb));
+		background: -moz-linear-gradient(top, #ededed, #ebebeb);
+	}
+
+	table th:first-child {
+		text-align: left;
+		padding-left: 20px;
+	}
+
+	table tr:first-child th:first-child {
+		-moz-border-radius-topleft: 3px;
+		-webkit-border-top-left-radius: 3px;
+		border-top-left-radius: 3px;
+	}
+
+	table tr:first-child th:last-child {
+		-moz-border-radius-topright: 3px;
+		-webkit-border-top-right-radius: 3px;
+		border-top-right-radius: 3px;
+	}
+
+	table tr {
+		text-align: center;
+		padding-left: 20px;
+	}
+
+	table td:first-child {
+		text-align: left;
+		padding-left: 20px;
+		border-left: 0;
+	}
+
+	table td {
+		padding: 13px;
+		border-top: 1px solid #ffffff;
+		border-bottom: 1px solid #e0e0e0;
+		border-left: 1px solid #e0e0e0;
+
+		background: #fafafa;
+		background: -webkit-gradient(linear, left top, left bottom, from(#fbfbfb), to(#fafafa));
+		background: -moz-linear-gradient(top, #fbfbfb, #fafafa);
+	}
+
+	table tr.even td {
+		background: #f6f6f6;
+		background: -webkit-gradient(linear, left top, left bottom, from(#f8f8f8), to(#f6f6f6));
+		background: -moz-linear-gradient(top, #f8f8f8, #f6f6f6);
+	}
+
+	table tr:last-child td {
+		border-bottom: 0;
+	}
+
+	table tr:last-child td:first-child {
+		-moz-border-radius-bottomleft: 3px;
+		-webkit-border-bottom-left-radius: 3px;
+		border-bottom-left-radius: 3px;
+	}
+
+	table tr:last-child td:last-child {
+		-moz-border-radius-bottomright: 3px;
+		-webkit-border-bottom-right-radius: 3px;
+		border-bottom-right-radius: 3px;
+	}
+
+	table tr:hover td {
+		background: #f2f2f2;
+		background: -webkit-gradient(linear, left top, left bottom, from(#f2f2f2), to(#f0f0f0));
+		background: -moz-linear-gradient(top, #f2f2f2, #f0f0f0);
+	}
+</style>
+
+<head>
+	<meta charset='utf-8'>
+	<title>Help page</title>
+	<meta content='width=device-width' name='viewport'>
+</head>
+
+<body>
+	<center>
+		<h2 style="text-align: center;">Help page</h2>
+		<p>API overview :</p>
+		<table class="pure-table">
+			<tbody>
+				<tr style="height: 13px;">
+					<th style="height: 13px;">Function</th>
+					<th style="height: 13px;">Name</th>
+					<th style="text-align: center; height: 13px;">Set</th>
+					<th style="text-align: center; height: 13px;">Get</th>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Read the host name</td>
+					<td style="height: 13px;">Title</td>
+					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Send immediate command (List of commands)<ol>
+							<li> <b>param</b> -> Show param. on ePaper</li>
+							<li> <b>p5turn</b> -> Clockwise 5 turns</li>
+							<li> <b>n5turn</b> -> Anti clockwise 5 turns</li>
+							<li> <b>calturn</b> -> Calibrate step/turn</li>
+							<li> <b>restpos</b> -> Calib. Rest position</li>
+							<li> <b>reboot</b> -> Reboot</li>
+						</ol>
+					</td>
+					<td style="height: 13px;">Cmd</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">-</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Broker IP asdress (only IP is allowed)</td>
+					<td style="height: 13px;">BroAdr</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Broker port number (usually 1883)</td>
+					<td style="height: 13px;">BroPor</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Broker user password (empty if not used)</td>
+					<td style="height: 13px;">BroPwd</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Broker user name (empty if not used)</td>
+					<td style="height: 13px;">BroUse</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Network Time Protocol server name</td>
+					<td style="height: 13px;">SrvNtp</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Greenwich Mean Time offset in seconds</td>
+					<td style="height: 13px;">GmtOff</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Daylight saving time (DST) or summer time offset</td>
+					<td style="height: 13px;">DayOff</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Number of Step per turn</td>
+					<td style="height: 13px;">StpTun</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Number of step to detect the bad direction during calibration</td>
+					<td style="height: 13px;">BadDir</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Inaccuracy in number of step.</td>
+					<td style="height: 13px;">InaStp</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Sismograph sensitivity (1-255)</td>
+					<td style="height: 13px;">SisSen</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Sismograph action after knock</td>
+					<td style="height: 13px;">SisKno</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr>
+					<td>Get if Wifi connection is done</td>
+					<td>Wifist</td>
+					<td style="text-align: center;">X</td>
+					<td style="text-align: center;">-</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Get if server MQTT is connected</td>
+					<td style="height: 13px;">Mqttst</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">-</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Get current stepping motor position</td>
+					<td style="height: 13px;">Step</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">-</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Get if rest position is detected</td>
+					<td style="height: 13px;">Hall</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">-</td>
+				</tr>
+			</tbody>
+		</table>
+		Sample:
+		<table class="pure-table">
+			<tbody>
+				<tr style="height: 13px;">
+					<th style="height: 13px;width:10%">Protocol</th>
+					<th style="height: 13px;width:40%">Sample</th>
+					<th style="text-align: center; height: 13px;width:60%">What does this function do? </th>
+				</tr>
+				<tr style="height: 11px;">
+					<td style="height: 11px;">Http<br>Get</td>
+					<td style="height: 11px;text-align: left;">http://IP/wwm?Title=</td>
+					<td style="text-align: left; height: 11px;">Return host name defined in config file. Define the MQTT
+						Tag (in<i>HOSTNAME</i>, out<i>HOSTNAME</i>).</td>
+				</tr>
+
+				<tr style="height: 11px;">
+					<td style="height: 11px;">Mqtt<br>Send</td>
+					</td>
+					<td style="height: 11px;text-align: left;">Tag: inWatchWinderMax<br>Msg: {"BadDir":"500"}</td>
+					<td style="text-align: left; height: 11px;">Send new Bad direction to 500 step.
+				</tr>
+				<tr style="height: 11px;">
+					<td style="height: 11px;">Mqtt<br>Received</td>
+					<td style="height: 11px;text-align: left;">Tag: outWatchWinderMax<br>Msg:
+						{"From":"Mqtt","Reconnection":"true"}</td>
+					<td style="text-align: left; height: 11px;">Received information from WWM about new connection on
+						MQTT server
+				</tr>
+				<tr style="height: 11px;">
+					<td style="height: 11px;">Mqtt<br>Received</td>
+					<td style="height: 11px;text-align: left;">Tag: outWatchWinderMax<br>Msg:
+						{"From":"Knock","Cmd":"4098"}</td>
+					<td style="text-align: left; height: 11px;">Received information from WWM motor moving after an user
+						action
+				</tr>
+			</tbody>
+		</table>
+		The simple tool <a class='button' href='https://www.jensd.de/wordpress/'>MQTT.fx</a> was used to communicate
+		throught Mosquitto
+		An open source MQTT broker. This broker was installed on The Raspberry Pi 4 Model B device.
+
+	</center>
+</body>
+
+</html>
