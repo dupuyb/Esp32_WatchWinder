@@ -22,10 +22,12 @@
 }
 .l4 {
     text-align: center;
-    width: 7em;
+    width: 10em;
     display: inline-block;
     font-size: 80%;
     border: 1px dotted black;
+    overflow: hidden;
+    max-width: 20ch;
 }
 legend {
     background-color: rgb(92, 81, 81);
@@ -61,7 +63,7 @@ legend {
         <form action='/wwm' method='post' >
             <fieldset>
                 <legend> Current state </legend>
-                <div class='cmt'>The Wifi link is %%Wifist%%, and the server MQTT is %%Mqttst%%. Stepping motor position is at %%Step%% step. The Magnet north sensor is %%Hall%%. SPI Flash File System total/used %%FsFree%% Kbytes
+                <div class='cmt'>The Wifi link is %%Wifist%%, and the server MQTT is %%Mqttst%%. Stepping motor position is at %%Step%% step. The Magnet north sensor is %%Hall%%. The glass dome is %%GlassP%%. The photo-resistor module is at %%PhotoR%% (0:dark 4095:bright) .SPI Flash File System total/used %%FsFree%% Kbytes
                 </div>
             </fieldset>
             <fieldset>
@@ -103,21 +105,35 @@ legend {
             </div>
             <div style=' width: 40em; display: block; '>
                 <div class='cmt'>
-                    <li>Sismograph sensitivity (1-255) and Action associate</li>
+                    <li>WatchWinderMax general behaviour during the day</li>
                 </div>
-                <div class='r12'><label for='SisSen'>Sensitivity :</label></div>
+                <div class='r12'><label for='ActNor'>Action normal :</label></div>
+                %%ActNor%%    
+                <div class='r12'><label for='MovNig'> Move even at night :</label></div>
+                %%MovNig%%
+                <p style='line-height: 1.0; font-size: 0.8em;'>Comment: In <b>Turn hours</b> one turn by hour <b>Clock hand turn</b> movement every 1 minutes.</p>
+
+            </div>
+            <div style=' width: 40em; display: block; '>
+                <div class='cmt'>
+                    <li>Sensor Sensitivity and Action associate</li>
+                </div>
+                <div class='r12'><label for='DaySen'> Twilight (0-4096) :</label></div>
+                <div class='l12'><input type='number' name='DaySen' value='%%DaySen%%' placeholder='400' maxlength='4'></div>
+                <div class='l4'>%%DaySen%%</div>
+                <div class='r12'><label for='SisSen'>Sismograph (0-255) :</label></div>
                 <div class='l12'><input type='number' name='SisSen' value='%%SisSen%%' placeholder='50' maxlength='4'></div>
                 <div class='l4'>%%SisSen%%</div>
                 <div class='r12'><label for='SisKno'>Action after knock :</label></div>
                 %%SisKno%%
-                <p style='line-height: 1.0; font-size: 0.8em;'>Remarks: In <b>current time</b> mode, one automatic movement will be triggered every half hour. </p>
+                <p style='line-height: 1.0; font-size: 0.8em;'>Comment: In <b>current time</b> mode, turn alternately in the direction clockwise or anti-clockwise  </p>
             </div>
             <div style=' width: 40em; display: block; '>
                 <div class='cmt'>
                     <li>MQTT* Broker Profile Setting (Emty if not used)</li>
                 </div>
                 <div class='r12'><label for='BroAdr'>Broker Address :</label></div>
-                <div class='l12'><input type='text' name='BroAdr' maxlength='30' value='%%BroAdr%%'></div>
+                <div class='l12'><input type='text' name='BroAdr' maxlength='62' value='%%BroAdr%%'></div>
                 <div class='l4'>%%BroAdr%%</div>
                 <div class='r12'><label for='BroPor'>Broker Port :</label></div>
                 <div class='l12'><input type='number' name='BroPor' value='%%BroPor%%'  placeholder='1883' maxlength='7'></div>
@@ -128,8 +144,17 @@ legend {
                 <div class='r12'><label for='BroPwd'>Password :</label></div>
                 <div class='l12'><input type='text' name='BroPwd' value='%%BroPwd%%' maxlength='30'></div>
                 <div class='l4'>%%BroPwd%%</div>
-                <p style='line-height: 1.0; font-size: 0.8em;'>*Topics list and message are visible <a class='button' href='/help'>here</a></p>
+                <p style='line-height: 1.0; font-size: 0.8em;'>*Topics list and message are visible <a class='button' href='/help.html'>here</a></p>
             </div>
+            <div style=' width: 40em; display: block; '>
+                <div class='cmt'>
+                    <li>HTTP* Get server for web[0-9].jpg at 00:00 (Emty if not used)</li>
+                </div>
+                <div class='r12'><label for='HtpAdr'>Server Address :</label></div>
+                <div class='l12'><input type='text' name='HtpAdr' maxlength='62' value='%%HtpAdr%%'></div>
+                <div class='l4'>%%HtpAdr%%</div>
+            </div>
+
             <div style='display: block;'>
                 <div class='cmt'>Send current configuration to the %%Title%%</div>
                 <div class='button'><button type='submit' class="myBt">Overwrite current parameters</button></div>
@@ -152,7 +177,7 @@ legend {
             </form>
             <p style='line-height: 1.0; font-size: 0.8em;'>Remarks: some operations take a long time to complete. Wait for any selected tasks to finish. </p>
         </fieldset>
-        <div class='cmt'><b>Some specialist facilities</b> are available on page :<a class='button' href='/'>Specialist tools</a> and the list of commands (Http and Mqtt) are visible <a class='button' href='/help.html'>here</a>.</div>
+        <div class='cmt'><b>Some specialist facilities</b> are available on page :<a class='button' href='/'>Specialist tools</a> and the list of commands (Http, Mqtt and FS) are visible <a class='button' href='/help.html'>here</a>.</div>
     </center>
 </body>
 

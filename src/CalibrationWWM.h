@@ -3,117 +3,120 @@
 
 #include <AccelStepper.h>
 
+#define NV -1 // pos=NV not valid
 class CalibrationWWM {
 public:
     CalibrationWWM(AccelStepper* stp){
-        stepper=stp;
+      stepper=stp;
+    }
+
+    void init(float speed, float speedMax, float accleration) {
+      stepper->setMaxSpeed(speedMax);
+      stepper->setAcceleration(speed);
+      stepper->setSpeed(accleration);
     }
 
     bool CalibrationFinished() {
-        if (autoCalRun && !manuCalRun) 
-            autoCalibre();
-        if (manuCalRun && !autoCalRun) 
-            manualCalibre();
-        return (!manuCalRun && !autoCalRun ) ;
-    }
+      if ( autoCalRun && !turnCalRun )  autoCalibre();
+      if (!autoCalRun &&  turnCalRun )  turnCalibre();  
+      return ( !autoCalRun && !turnCalRun ); // 0=false
+    } 
 
-    uint8_t initMove(uint8_t cCM) {
-        //Serial.printf(">>> cadranCalibMode:%d START\n\r", cCM);
-        pIn1 = pOut1 = pIn2 = pOut2 = 0;
-        stepper->setCurrentPosition(1);
-        stepper->move(oneTurnStep*3);
-        return cCM + 1;
-    }
-    uint8_t middleEdge(uint8_t cCM){
-        long turn = abs(pOut1-pOut2);
-        long pos;
-        oneTurnStep = turn;
-        pos = pIn2;
-        //Serial.printf(">>> cadranCalibMode:%d GOTO turn1=%ld pos=%ld \n\r", cCM,turn, pos) ;
-        stepper->moveTo(pos);
-        return cCM + 1;         
-    }
-
-    int manualCalibre() {
-        switch (manuCalRun) {
-            // Zero position setup
-            case 1: // Start one trun
-                countDelay = 0;
-                manuCalRun = initMove(manuCalRun);
-            break;
-            case 2: // First interrupt ______pIn-----pOut____
-            if ((pIn2 = !0) && (pOut2 != 0))  {
-                if (stepper->isRunning()) {
-                  stepper->stop();
-                } else {
-                  manuCalRun = middleEdge(manuCalRun);
-                }
-            }
-            break;
-            case 3: // Wait position is final destination
-            if (!stepper->isRunning()) {
-                //Serial.printf(">>> manuCalRun:%d FINISHED pos=%ld \n\r", manuCalRun, stepper->currentPosition());
-                stepper->setCurrentPosition(0);
-                manuCalRun = 4;
-            } 
-            // Delay protection.
-            if (countDelay++>180)
-                manuCalRun = 0;
-            break;
-            case 4:  {
-                manuCalRun = 0;
-            }
-            break;
+    void turnCalibre(){
+      dirCcw = stepper->distanceToGo()>0;
+      if (turnCalRun==1) { // Init Edge=NV stepper is set to move ccw
+        stepper->move(3 * Confwwm.config.oneTurnInStep ); 
+        dirCcw = true;
+        resetEdge();
+      } else {
+        if (ccwl!=NV && ccwh!=NV) {
+          if (ccwl1!=NV && ccwh1!=NV && ccwl!=ccwl1 && ccwh!=ccwh1) {   // ccw direction only
+            Confwwm.config.oneTurnInStep = ( ((ccwl-ccwl1) + (ccwh-ccwh1)) / 2 ); // Set new oneTurnInStep
+            stop(); return;
+          }
+          if (ccwl1==NV) ccwl1=ccwl;
+          if (ccwh1==NV) ccwh1=ccwh;
         }
-        return manuCalRun;
+      }
+      if (turnCalRun++>90)  stop(); // TimeOut 90s
     }
 
-    int  autoCalibre() {
-        // A voir pour ajouter un offset d'angle comme parametre.
-        if (autoCalRun != 0) {
-            if (autoCalRun==1) { // Start 
-              pOut1 = pIn1 = pOut2 = pIn2 = 0;
-            }
-            long pos = stepper->currentPosition();
-            autoCalRun++;
-            if (pOut1==0){
-                stepper->move(autoCalStep);
-                if ( (pos > autoCalOut) && autoCalStep > 0) // Not Edge found in this direction
-                autoCalStep=-autoCalStep; // No Edge back to other direction
-            } else {
-              if (pIn1==0){
-                stepper->move(-autoCalStep);
-              } else {
-                stepper->moveTo(pIn1);
-                if (!stepper->isRunning()) {
-                  stepper->setCurrentPosition(0);
-                  //Serial.printf("ClockDir autoCalibre FINisKED \n\r");
-                  autoCalRun=0; // Is finish
-                }
-              } 
-            } 
-           //Serial.printf("autoCalibre pOut1:%ld, pIn1:%ld pos=%ld \n\r", pOut1, pIn1, pos);
-        }
-        return autoCalRun;
+    void stop() {
+      stepper->stop();
+      autoCalRun=0; turnCalRun=0;
     }
 
-    void init() {
-        stepper->setMaxSpeed(800.0);
-        stepper->setAcceleration(100.0);
-        stepper->setSpeed(400);
+    void resetNorth() {
+      ccwN=NV;acwN=NV;mean=NV;
     }
 
-    uint8_t manuCalRun = 0; // OFF 
-    int autoCalRun=1;       // Start aut calibration at beginning
-    long pIn1;
-    long pIn2;
-    long pOut1;
-    long pOut2;
+    void resetEdge() {
+      resetNorth();
+      ccwl1=NV;ccwh=NV;ccwh=NV;acwh=NV;ccwl=NV;acwl=NV;
+    }  
+
+    long getCcwN() {
+      if(ccwh!=NV && ccwl!=NV && ccwh>ccwl) { return (ccwh + ccwl)/2; } // Detect ccw mode OK
+      return NV;
+    }
+
+    long getAcwN() {
+      if(acwh!=NV && acwl!=NV && acwh<acwl) { return (acwl + acwh)/2; } // Detect acw mode OK
+      return NV;
+    }
+
+    // list of king   sens        South              
+    // Moving (-->)   ccw ---ccwl____>>_____ccwh-----   Here value of ccwl < ccwh
+    // Moving (<--)   acw ---acwh____<<_____acwl----    Here value of acwl > acwh
+    void autoCalibre() {
+      dirCcw = stepper->distanceToGo()>0;
+      if (autoCalRun==1) { // Init Edge=NV stepper is set to move ccw
+        resetEdge();
+        stepper->move(2 * Confwwm.config.oneTurnInStep ); // Dir ccw for 3 turns
+        dirCcw = true;
+      }
+      if (autoCalRun++>120)  stop(); // TimeOut 120s
+      if (ccwN==NV) ccwN = getCcwN();
+      if (acwN==NV) acwN = getAcwN();
+      if (ccwN!=NV && acwN!=NV) { // North position found
+        if (mean==NV) mean = (ccwN+acwN) / 2;
+        if (mean==stepper->currentPosition()) { stepper->setCurrentPosition(0); stop(); }
+        if (mean!=stepper->targetPosition())  stepper->moveTo(mean);
+      } else {
+        if (stepper->isRunning() && dirCcw && ccwh!=NV && ccwl!=NV  ) {// comtinu 2 sec
+            stepper->move(-2 * Confwwm.config.oneTurnInStep); // Dir acw for 3 turns
+        } 
+      }
+    }
+
+    void forceZero(long val){
+      if (val!=NV) {
+        resetNorth();
+        autoCalRun=2;
+      }
+    }
+
+    long checkMean() {
+      long cc = getCcwN();
+      long cw = getAcwN();
+      if (cc!=NV && cw!=NV) return (cc+cw) / 2;
+      return NV;
+    }
+
     AccelStepper* stepper;
-    long oneTurnStep = 4098;
-    long autoCalOut=600;
-    long autoCalStep=50;
-    int countDelay;
-
+    int turnCalRun = 0; // OFF 
+    int autoCalRun = 1; // Start in calibration at beginning
+    bool isAtNoth = false;
+    bool dirCcw;  // Dir ccw oe acw
+    long mean=NV; // mean (ccw+acw)/2
+    long ccwN=NV; // North ccw
+    long acwN=NV; // North acw
+    long ccwh=NV; // Edge Higt ccw
+    long acwh=NV; // Edge High acw
+    long ccwl=NV; // Edge Low ccw
+    long acwl=NV; // Edge Low acw
+    long ccwl1; // tempo value 
+    long ccwh1;
+    bool testStepper=false;
 };
 #endif

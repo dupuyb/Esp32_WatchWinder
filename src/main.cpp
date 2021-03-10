@@ -18,28 +18,44 @@ ConfigWWM Confwwm;
 #include <PubSubClient.h>
 #include "CalibrationWWM.h"
 #include "DspEpaper.h"
+#include "Trig.h"
+#include "WatchDog.h"
 
 // mqtt 
+String MqttIn;
+String MqttOut;
+uint8_t mqttCrc8 = 0;
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-// Power supply-survey
+// Power supply-survey & wifi
+WatchDog wdogPwr;
+int8_t wifiLost = 0;
+#define pinAd 39 // ADC1_3 day/night detector
+uint16_t lux;
 #define pinAo 36 // ADC1_0 A 
-#define pin5V 4 // Relay power-supply is on at 1
+#define pwrP5V 32 // Primaire 5V
+#define pwrS5V 4 // Relay power-supply is on at 1
 #define pinSp 5  // Hall cadran position detector
-#define pinT8 33 // Touch sensor
-#define pinT9 32
-uint16_t vddUsb = 4095;
-uint16_t lowLimit = 0xE00;
+#define pinGl 21 // Presence Glass
+Trig glassOk(true);
+#define pinT8 33 // Touch sensor Not used now.
+ //#define pinT9 32 pwrP5V inside of 34 input
+uint16_t vdayNi = 0xFFF; // Set at max
+uint16_t vddUsb;
+#define SCAL5V 0.001221
+uint16_t lowLimit = 0xF5B; // USB is connected 4.8V
+Trig dayMode(true);
+int dayModeCnt=0;
 
-const char *version = "0.6.4";
+const char *version = "1.1.3";
 const char *HOSTNAME = "WatchWinderMax";
 int wifiSt = -1;
 
 // Time facilities
 struct tm timeinfo;                  // time struct
 
-// for SPI pin definitions see e.g. C:\Users\xxx\Documents\Arduino\hardware\espressif\esp32\variants\lolin32\pins_arduino.h
+// for SPI pin definitions see e.g. \Documents\Arduino\hardware\espressif\esp32\variants\lolin32\pins_arduino.h
 // BUSY -> GPIO4, RST -> GPIO2, DC -> GPIO0, CS -> GPIO15, CLK -> GPIO14, DIN -> GPIO13, GND -> GND, 3.3V -> 3.3V
 #define PIN_SPI_SCK 13
 #define PIN_SPI_DIN 14
@@ -51,9 +67,8 @@ SPIClass spi(2);                                         // mapped on PIN_SPI_SC
 GxIO_Class io(spi, PIN_SPI_CS, PIN_SPI_DC, PIN_SPI_RST); // arbitrary selection of 17, 16
 GxEPD_Class display(io, PIN_SPI_RST, PIN_SPI_BUSY);      // arbitrary selection of (16), 4
 
-// Stepper Gear reduction	1/64 (see note)
+// Stepper Gear reduction	1/64 (see note)  64*64 = 4096 per turn
 #define stepsPerRevolution 8
-
 #define pinU1 16 // Selenoid
 #define pinU2 17 // Selenoid
 #define pinU3 18 // Selenoid
@@ -67,8 +82,8 @@ Adafruit_LIS3DH *lis3dh;
 // Adjust this number for the sensitivity of the 'click' force
 // this strongly depend on the range! for 16G, try 5-10
 // for 8G, try 10-20. for 4G try 20-40. for 2G try 40-80
-uint8_t LIS3DH_Click = 0;
-bool LIS3DH_Present;
+uint8_t lis3dhClick = 0;
+bool lis3dhPresent;
 
 // Timer
 #define LED
@@ -87,20 +102,32 @@ void saveConfigCallback() {}
 // Declaration
 void mqttPostionMsg(long pos, String src);
 // Display
-DspEpaper eDsp(&display, &stepper, &timeinfo, &calibStp, &LIS3DH_Click, &wifiSt, (char *)version);
+String getPRoperty(int);
+DspEpaper eDsp(&display, &getPRoperty, &timeinfo);
 // Task
 static int app_cpu = 0; // Updated by setup() 
-QueueHandle_t qDsp = xQueueCreate(5, sizeof(dsp));
+QueueHandle_t qDsp = xQueueCreate(5, sizeof(qmsgstuct));
 TaskHandle_t epaperCxHandle = NULL;
-TaskHandle_t wifiCxHandle = NULL;
 TaskHandle_t stepperCxHandle = NULL;
-#define DSP_TASK_PRIORITY 5
+TaskHandle_t wifiCxHandle = NULL;
+
+#define DSP_TASK_PRIORITY 1
 #define WIFI_TASK_PRIORITY 7
 #define MAIN_TASK_PRIORITY  10
 #define STEPPER_TASK_PRIORITY 12 // Low priority numbers denote low priority tasks
 
 // Debug
 int8_t cmd;
+// LOGGER update 120 chars Max
+#define LOG(format, ...) { \
+  if(cmd!=' ') { \
+    char temp[121];\
+    snprintf(temp, 120, format, __VA_ARGS__); \
+    Serial.println(temp); \
+  } \
+}  
+
+#define BOOL(val) ((val)?("On"):("Off"))
 
 // -------- WWM Web transformation into Get Set functions ------------- 
 #include "wwmconfig.h"
@@ -131,6 +158,54 @@ void scanI2C() {
 }
 #endif
 
+String getPRoperty(int prop) {
+  String ret;
+  char temp[20];
+  switch (prop) {
+      case ICON: {
+        String ret = "0";
+        if (lis3dhClick != 0) ret = "1";
+        else if (calibStp.turnCalRun || calibStp.autoCalRun) ret = "2";
+        else if (calibStp.stepper->isRunning()) ret = "3"; 
+        else if (wifiSt != WL_CONNECTED) ret = "4";
+        else if (!glassOk.get()) ret = "5";
+        if (wdogPwr.isArmed()) ret = "6"; // Priority
+        return ret;
+      }
+      break;
+    case WIFI:
+      if (wifiSt == WL_CONNECTED) return String("OK");
+      return String("BAD");
+    break;
+    case HHMM:
+      if (timeinfo.tm_year > 100) snprintf(temp, 10, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+      else strcpy(temp, "H:M");
+      return String(temp);
+    break;
+    case DDMM:
+      if (timeinfo.tm_year > 100) snprintf(temp, 20, "%02d/%02d/%04d", timeinfo.tm_mday, (timeinfo.tm_mon + 1), (1900 + timeinfo.tm_year));
+      else  strcpy(temp, "D/M");
+      return String(temp);     
+    case DMY:
+      if (timeinfo.tm_year > 100) snprintf(temp, 20, "%02d-%02d-%04d", timeinfo.tm_mday, (timeinfo.tm_mon + 1), (1900 + timeinfo.tm_year));
+      else  strcpy(temp, "D-M-Y");
+      return String(temp);
+    break;
+    case MAC:
+      uint8_t baseMac[6];
+      esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+      snprintf(temp, 20, "%02X:%02X:%02X:%02X:%02X:%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+      return String(temp);
+    break;
+    case VER: return String(version);  break;
+    case SPOS: { snprintf(temp, 20, "%ld", stepper.currentPosition());return String(temp);} break;
+    case SSPE: { snprintf(temp, 20, "%.1f", stepper.speed());return String(temp);} break;
+    case SISR: { snprintf(temp, 20, "%s", ((stepper.isRunning())?("ON"):("OFF"))); return String(temp);} break;
+    case SCAL: { snprintf(temp, 20, "%ld %ld", calibStp.ccwl, calibStp.ccwh); return String (temp); } break;
+  }
+  return String("Bad Prop:") + String (prop);
+}
+
 // -------------------------------------------------------
 void explorerFS(String &ret, fs::FS &fs, const char *dirname, uint8_t levels) {
   File root = fs.open(dirname);
@@ -151,61 +226,10 @@ void explorerFS(String &ret, fs::FS &fs, const char *dirname, uint8_t levels) {
   return;
 }
 
-// Display Task waitting message in qDsp queue
-void IRAM_ATTR epaperTask(void *pvParameter) {
-  while (1) { 
-    dsp dmv;
-    xQueueReceive (qDsp, &dmv, portMAX_DELAY);
-    eDsp.mainLoop(dmv);
-    yield();
-  }
-}
-
 //-------------------------------------------------
-void IRAM_ATTR wifiTask(void *pvParameter) {
-  while (1) {
-    // Wifi is running
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("wifiTask started");
-      frame.externalHtmlTools="Specific home page is visible at :<a class='button' href='/wwm'>W.W.M Page</a>";
-      frame.setup(HOSTNAME);
-    }
-    yield();
-    vTaskDelay(5);
-  }
-}
-
-// Increment or Decrement step
-void IRAM_ATTR stepperTask(void *pvParameter) {
-  Serial.println("stepperTask started");
-  while (1) {
-    if (stepper.run()){
-      stepper.enableOutputs();
-    } else {
-      stepper.disableOutputs();
-    }
-    vTaskDelay(1);
-  }
-}
-
-// Interrupt if Hall  sensor A3114 detects the cadran magnet
-void IRAM_ATTR positionIN() {
-  calibStp.pIn2=calibStp.pIn1;
-  calibStp.pIn1=stepper.currentPosition();
-}
-void IRAM_ATTR positionOUT() {
-  calibStp.pOut2=calibStp.pOut1;
-  calibStp.pOut1=stepper.currentPosition();
-}
-void IRAM_ATTR positionCHG(){
-  int val = digitalRead(pinSp);
-  if (val==HIGH) positionOUT(); 
-  else positionIN();
-}
-
-void httpGetFile (String name){
-  HTTPClient http;  
-  Serial.println("Start http request:"+name);
+HTTPClient http;  
+void httpGetFile (String name) {
+  //http.setTimeout(60);
   http.begin( Confwwm.config.ImageHttpEa + name);
   http.addHeader("Content-Type", "text/plain");                       //Specify content-type header
   int httpResponseCode = http.POST("POSTING from WatchWinderMax");   //Send the actual POST request
@@ -214,33 +238,96 @@ void httpGetFile (String name){
       if (httpResponseCode==200){   
       File file = SPIFFS.open(name, "w");
       if (!file) {
-        Serial.println("Can't write in image file:");
-        Serial.println(name);
+        LOG("%s -Can't load image:%s", getPRoperty(HHMM).c_str(), name.c_str());
       } else {
         file.print(response),
         file.close();
       }
     }
   } else {
-    Serial.print("Error on sending POST: ");
-    Serial.println(httpResponseCode);
+    LOG("%s -Error sending POST: %d for:%s", getPRoperty(HHMM).c_str(), httpResponseCode, name.c_str());
   }
   http.end();  //Free resources
-  Serial.println("httpGetFile is finished.");
 }
 
-//! adapter topic message ---------------------------------
-String MqttIn;
-String MqttOut;
-bool mqttUsed = false;
+void getWebTask() {
+  char str[12];
+  LOG("%s +Start taskGetImageWeb",getPRoperty(HHMM).c_str());
+  for (int i=0; i<10; i++) {
+    snprintf(str, 12, "/web%d.jpg", i); 
+    httpGetFile(String(str));
+    yield();
+    vTaskDelay(35);
+  }
+  LOG("%s +Set UTP time",getPRoperty(HHMM).c_str());
+  configTime(Confwwm.config.gmtOffset_sec, Confwwm.config.daylightOffset_sec, Confwwm.config.ntpServer); //init and get the time
+  LOG("%s -Finish taskGetImageWeb",getPRoperty(HHMM).c_str());
+}  
 
+void IRAM_ATTR wifiTask(void *pvParameter) {
+  if (WiFi.status() != WL_CONNECTED) {
+    LOG("%s +wifiTask started",getPRoperty(HHMM).c_str());
+    frame.externalHtmlTools="Specific home page is visible at :<a class='button' href='/wwm'>W.W.M Page</a>";
+    frame.setup(HOSTNAME); // SPIFS, WIFI, OTA, Server stating...
+    configTime(Confwwm.config.gmtOffset_sec, Confwwm.config.daylightOffset_sec, Confwwm.config.ntpServer); //init and get the time
+    LOG("%s -wifiTask ok delte task",getPRoperty(HHMM).c_str());
+  }
+  vTaskDelete( NULL ); // auto destroy
+}
+
+// Display Task waitting message in qDsp queue
+void IRAM_ATTR epaperTask(void *pvParameter) {
+  LOG("%s +Start epaperTask & manager",getPRoperty(HHMM).c_str());
+  while (1) { 
+    qmsgstuct dmv;
+    xQueueReceive (qDsp, &dmv, portMAX_DELAY);
+    if (dmv.evt==dsp) eDsp.mainLoop(dmv);
+    if (dmv.evt==web) getWebTask();
+    vTaskDelay( pdMS_TO_TICKS( 100 ) );
+  }
+}
+
+// Increment or Decrement step
+void IRAM_ATTR stepperTask(void *pvParameter) {
+  LOG("%s +Start stepperTask",getPRoperty(HHMM).c_str());
+  while (1) {
+    if (stepper.run()) {
+      stepper.enableOutputs();
+      vTaskDelay(1);
+     } else {
+       stepper.disableOutputs();
+       vTaskDelay(pdMS_TO_TICKS( 100 ) );
+     }
+  }
+}
+
+// Interrupt if Hall sensor A3114 detects the cadran magnet (Call in change mode)
+// Moving (-->)   ccw ---ccwl____>>_____ccwh-----   Here value of ccwl < ccwh
+// Moving (<--)   acw ---acwh____<<_____acwl----    Here value of acwl > acwh
+void IRAM_ATTR positionCHG() {
+  int val = digitalRead(pinSp);
+  long cp = stepper.currentPosition();
+  long tp = stepper.targetPosition();
+  calibStp.dirCcw = tp > cp;
+  if (val==HIGH) { 
+    if (calibStp.dirCcw) calibStp.ccwh = cp;
+    else calibStp.acwh = cp;
+    calibStp.isAtNoth = false;
+  } else { // We are outside of the detector --> reset edge high to prevent turn-around 
+    if (calibStp.dirCcw) { calibStp.ccwl = cp; calibStp.ccwh = NV; }
+    else { calibStp.acwl = cp; calibStp.acwh = NV; }
+    calibStp.isAtNoth = true;
+  }
+}
+
+// adapter topic message ---------------------------------
 void mqttPublish(String src, String jkey, String jval){
   String msg;
   DynamicJsonDocument json(80);
   json["From"] = src;
   json[jkey] = jval;
   serializeJson(json, msg);
-  Serial.printf("MqttPublish Topic[%s] msg[%s]\n\r", MqttOut.c_str(), msg.c_str());
+  LOG("%s +MqttPublish Topic[%s] msg[%s]\n\r",getPRoperty(HHMM).c_str(), MqttOut.c_str(), msg.c_str());
   mqttClient.publish(MqttOut.c_str(), msg.c_str());
 }
 
@@ -259,15 +346,8 @@ void mqttPublishAll(){ // size limeted at MQTT_MAX_PACKET_SIZE+128 byte
   } 
 }
 
-void mqttPostionMsg(long pos, String src){
-  if (mqttClient.connected()) {
-    mqttPublish(src, "Cmd", String(pos));
-  }
-  stepper.moveTo(pos);
-}
-
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("MQTT callback ["); Serial.print(topic); Serial.println("] ");
+  LOG("%s +MQTT callback [%s]", getPRoperty(HHMM).c_str(), topic); 
   std::unique_ptr<char[]> buf(new char[length]);
   for (int i=0;i<length; i++) {
     buf.get()[i]=(char)payload[i];
@@ -282,7 +362,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   for (JsonPair keyValue : documentRoot) {
     String val = json[keyValue.key()];
     String key = "%%"+String(keyValue.key().c_str())+"%%";
-    Serial.printf("MQTT Callback [%s]:[%s]\n\r", key.c_str(), val.c_str() );
+    LOG("%s +MQTT Callback [%s]:[%s]\n\r",getPRoperty(HHMM).c_str(), key.c_str(), val.c_str() );
     for (int idx=0; idx<NBRITEMINDICO; idx++) {
        if (key==dico[idx].key && dico[idx].set_ptr != NULL) {
         (*dico[idx].set_ptr)(val);
@@ -294,7 +374,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   //  Print
   String output;
   serializeJson(json, output);
-  Serial.println(output.c_str());
+  LOG("%s", output.c_str());
   if (empty){
     mqttPublishAll();
   } 
@@ -305,10 +385,11 @@ bool mqttReconnect() {
   if (!mqttClient.connected()) {
     String clientId = frame.config.HostName;
     clientId += String(random(0xffff), HEX);
+    LOG("%s +mqttReconnect.",getPRoperty(HHMM).c_str());
     // Attempt to connect
     if (mqttClient.connect(clientId.c_str())) {
       // Once connected, publish an announcement... and resubscribe 
-      mqttPublish("Mqtt", "Reconnection", "true");
+      mqttPublish("Mqtt", "Connection", "true");
       mqttClient.subscribe(MqttIn.c_str());
     } else {
       return false;
@@ -317,45 +398,57 @@ bool mqttReconnect() {
   return true;
 }
 
+void setupDisplay(){
+  // Adapte to GDEW0213I5F 212x104, 2.13inch flexible E-Ink display on ePaperESP32 Driver Board
+  spi.begin(PIN_SPI_SCK, -1, PIN_SPI_DIN, PIN_SPI_CS);
+  display.init();
+  display.setRotation(1);
+}
+
 void setup(void) {
   // Set Serial ---------------------------------------
   Serial.begin(115200);
+  if ( esp_reset_reason()==ESP_RST_SW ) cmd='d';
+  if (cmd=='d') Serial.println("Start -[d]-");
+  else Serial.println("Start...");
 #ifdef LED
   pinMode(EspLedBlue, OUTPUT);     // Led is BLUE at statup
   digitalWrite(EspLedBlue, HIGH);  // After 5 seconds blinking indicate WiFI ids OK
 #endif
   // Arm power ----------------------------------------
-  pinMode(pin5V, OUTPUT);
-  digitalWrite(pin5V, HIGH);    // initial state power ON
+  pinMode(pwrP5V, OUTPUT);
+  pinMode(pwrS5V, OUTPUT);
+  // MUST BE IMPROVED
+  digitalWrite(pwrP5V, LOW);    // initial state power ON
+  digitalWrite(pwrS5V, LOW);    // initial state power ON
   // Set Power-supply survey & position capture
   pinMode(pinAo, INPUT);
   pinMode(pinSp, INPUT);
+  pinMode(pinGl, INPUT);
+  pinMode(pinAd, INPUT);
   attachInterrupt(digitalPinToInterrupt(pinSp), positionCHG, CHANGE);
   // Load configuration
   Confwwm.loadConfigurationJson();
   // TEST A FAIRE
-  //! WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
   // Set Task priority --------------------------------
   TaskHandle_t h = xTaskGetCurrentTaskHandle();   
   app_cpu = xPortGetCoreID(); // Quelle UC ?   
   vTaskPrioritySet(h,MAIN_TASK_PRIORITY);
   // setup the display --------------------------------
-  // Adapte to GDEW0213I5F 212x104, 2.13inch flexible E-Ink display on ePaperESP32 Driver Board
-  spi.begin(PIN_SPI_SCK, -1, PIN_SPI_DIN, PIN_SPI_CS);
-  display.init();
-  //! Mode Landscape /!\ _height = WIDTH; _width = HEIGHT;
-  display.setRotation(1);
+  setupDisplay();
   // first message welcome message
-  xTaskCreatePinnedToCore( &epaperTask, "epaperTask", 8096, NULL, DSP_TASK_PRIORITY, nullptr, ((app_cpu==0)?1:0));   
-  dsp dmv {0, start};
+  xTaskCreate( &epaperTask, "epaperTask", 8096, NULL, DSP_TASK_PRIORITY, nullptr);   
+  qmsgstuct dmv {start, day, 0, dsp};
   xQueueSend(qDsp, &dmv, 0);
+  vTaskDelay(200 / portTICK_PERIOD_MS);
   // WiFi Task ----------------------------------------
   if (app_cpu) disableCore0WDT();
   else disableCore1WDT();
-  xTaskCreatePinnedToCore(&wifiTask, "wifiTask", 8096,  NULL, WIFI_TASK_PRIORITY,  &wifiCxHandle, app_cpu);
-  // Init Stepper And StepperTask ----------------------
-  calibStp.init();
-  xTaskCreatePinnedToCore( &stepperTask, "stepperTask", 3000,  NULL, STEPPER_TASK_PRIORITY, &stepperCxHandle, ((app_cpu==0)?1:0));
+  xTaskCreate(&wifiTask, "wifiTask", 4096,  NULL, WIFI_TASK_PRIORITY,  &wifiCxHandle);
+  // Init Stepper And StepperTask (Speed, MaxSpeed Accelea=ration) ------------
+  calibStp.init(100.0, 800.0, 400.0);
+  xTaskCreate( &stepperTask, "stepperTask", 2048,  NULL, STEPPER_TASK_PRIORITY, &stepperCxHandle);
   // Wire i2c for Lis30H --------------------------------
   Wire.begin(pinSDA, pinSCL);
   lis3dh = new Adafruit_LIS3DH(&Wire);
@@ -363,112 +456,163 @@ void setup(void) {
   scanI2C();
 #endif
   if (!lis3dh->begin(0x19)){ // change this to 0x18 for alternative i2c address
-    LIS3DH_Present = false;
-    Serial.println("//!\\ Error LIS3DH not found!");
+    lis3dhPresent = false;
+    LOG("/!\\ %s Error LIS3DH not found!", getPRoperty(HHMM).c_str());
   } else {
-    LIS3DH_Present = true;
-    Serial.println("LIS3DH found!");
+    lis3dhPresent = true;
   }
   lis3dh->setRange(LIS3DH_RANGE_2_G); // 2, 4, 8 or 16 G!
-  // Adjust threshhold, higher numbers are less sensitive
+  // Adjust threshold, higher numbers are less sensitive
   lis3dh->setClick(2, Confwwm.config.clickThreshold);
-  // End of sterring --------------------------------------
+  // Append /wwm access html 
+  frame.server.on("/wwm", [](){
+    frame.server.send(HTTP_CODE_OK, "text/html", sentHtmlWwm());
+  });
   sleep(2);
   yield();
-  Serial.println(">> start epaperTask");
+}
+
+void mqttPostionMsg(long pos, String src){
+  if (!src.isEmpty() && mqttClient.connected()) {
+    mqttPublish(src, "Cmd", String(pos));
+  }
+  stepper.moveTo(pos);
 }
 
 void tocAction (int t){
+  LOG("%s +tocAction:%d",getPRoperty(HHMM).c_str(),t);
   long absoluP = 0;
-  if ((int)(stepper.currentPosition()/10) == 0) 
-    absoluP=calibStp.oneTurnStep * t;
-  mqttPostionMsg(absoluP, "Knock");
-  stepper.moveTo(absoluP);
-} 
-void clockAction (int h, int m){
-  long absoluP = 0;
-  if ( m==0)  
-    absoluP = calibStp.oneTurnStep * h;
-  mqttPostionMsg(absoluP, "Clock");
-  stepper.moveTo(absoluP);
-} 
-
-//-------------  Main task  ------------------------------------
-int WifiError=0;
-void loop(void) {
-
-  // Get voltage 
-  vddUsb = analogRead(pinAo);
-  if (vddUsb < lowLimit) {
-    stepper.disableOutputs();
-    dsp dmv {0, stop};
-    xQueueSend(qDsp, &dmv, 0);
+  if (calibStp.isAtNoth) {
+    if (stepper.currentPosition()>Confwwm.config.oneTurnInStep-50) absoluP=0;
+    else absoluP=Confwwm.config.oneTurnInStep * t;
   }
+  mqttPostionMsg(absoluP, "Knock");
+} 
 
-  if (eDsp.screen==STOP)
-     digitalWrite(pin5V, LOW);  
+void clockAction (int h, int m){
+  LOG("%s +clockAction hour:%d",getPRoperty(HHMM).c_str(),h);
+  long absoluP = 0;
+  if (h>12) h=h-12; // too long for 22h 23h....
+  if ( m==0)  
+    absoluP = Confwwm.config.oneTurnInStep * h;
+  mqttPostionMsg(absoluP, "Clock");
+} 
 
-  // Wifi is running
-  if (wifiSt == WL_CONNECTED) {
-    WifiError=0;
-    // Delete WifiTask
-    if (wifiCxHandle != NULL) {
-      // Append /wwm access html 
-      frame.server.on("/wwm", [](){
-        frame.server.send(HTTP_CODE_OK, "text/html", sentHtmlWwm());
-      });
-      vTaskDelete(wifiCxHandle);
-      Serial.println(">> delete wifiTask ");
-      // Init time
-      configTime(Confwwm.config.gmtOffset_sec, Confwwm.config.daylightOffset_sec, Confwwm.config.ntpServer); //init and get the time
-      wifiCxHandle = NULL;
-      // Start MQTT client
-      if ( strlen(Confwwm.config.mqttServer)>2 ) {
-        MqttIn = "in"+String(frame.config.HostName);
-        MqttOut = "out"+String(frame.config.HostName);
-        mqttClient.setServer(Confwwm.config.mqttServer, Confwwm.config.mqttPort);
-        mqttClient.setCallback(mqttCallback); 
-        mqttUsed=true;
+void clockAction(int h, int m, int s){
+  if (m==0) LOG("%s +clockAction minute (1/h)",getPRoperty(HHMM).c_str());
+  float oneminute = (float)Confwwm.config.oneTurnInStep/60.0;
+  float ntrun = oneminute * (float)m;
+  if (m==30 ) {
+    LOG("%s +clockAction minute (-1.5/h)",getPRoperty(HHMM).c_str());
+    ntrun = -ntrun; // -1 turn at xxH30
+  }
+  long absoluP  = (long)ceil(ntrun);
+  mqttPostionMsg(absoluP, "");
+}
+
+void printHelp() {
+  Serial.println("------- Help command available -----------------|");
+  Serial.println("  i     Info system (heap,ip, detectors...)     |");
+  Serial.println("  d     Debug RT (log message)                  |");
+  Serial.println("  r     Reboot system                           |");
+  Serial.println("  z     Force zero if Meanposition changed      |");
+  Serial.println("  s/S   Screen information / Set low power      |");
+  Serial.println("  t/T   Time/date information / Test Stepper    |");
+  Serial.println("  c/C   Calibate stepper Postition/Turn         |");
+  Serial.println("  -/0/1 Move stepper -:-1Turn 0:Goto0 1:+1Truns |");
+  Serial.println("  </>   Move stepper 1/10 turn <-- or -->       |");
+  Serial.println("  #     Reset Edges limit motor                 |"); 
+  Serial.println("  m     Motor status                            |"); 
+  Serial.println("  p/P   Power 5V_chargeur Off/On                |"); 
+  Serial.println("  q/Q   Power 5V_backup   Off/On                |"); 
+  Serial.println("  g     Get http web0.jpg                       |"); 
+  Serial.println("  w     Write setup display test                |"); 
+  Serial.println("------------------------------------------------|"); 
+}
+
+void serialInput() {
+  while (Serial.available() > 0) {
+    uint8_t c = (uint8_t)Serial.read();
+    if (c != 13 && c != 10 ) {
+      cmd = c;
+    } else {
+      if (c==13) {
+        if (cmd=='h') { printHelp(); }
+        else if (cmd=='i') { 
+          Serial.println("-[i]-- info system ---");
+          Serial.printf("-HeapSize:%u bytes\n\r-MacAddr :%s\n\r-IpAddr  :%s\n\r",ESP.getFreeHeap(),getPRoperty(MAC).c_str(),WiFi.localIP().toString().c_str());
+          Serial.println("------sensors---------");
+          Serial.printf("-Dome :%s\n\r-Light:%d LimitDay:<%d\n\r",((glassOk.get()==1)?("detected"):("undetected")),lux,Confwwm.config.dayTwilight),
+          Serial.printf("-Knock:%d Toctoc isAtNorth:%d \n\r",lis3dhClick, calibStp.isAtNoth);
+          Serial.printf("-PowerUSB :%1.1fV lowPwr:<%1.1fV\n\r",(vddUsb*SCAL5V),(lowLimit*SCAL5V) );
+          Serial.printf("-PowP:%s PowB:%s\n\r", BOOL(digitalRead(pwrP5V)), BOOL(digitalRead(pwrS5V))); 
+          cmd=' '; 
+        }
+        else if (cmd=='d') { Serial.println("-[d]-- Debug ---\n\r Other cmd to stop"); cmd='d'; }
+        else if (cmd=='r') { Serial.println("-[r]-- Reboot ---"); ESP.restart(); }
+        else if (cmd=='s') { Serial.printf("-[s]-- Screen ---\n\r%s\n\r",eDsp.toString().c_str()); cmd='d';}
+        else if (cmd=='S') { Serial.println("-[S]-- Stop ---"); lowLimit=0xf001; cmd='d';}
+        else if (cmd=='t') { Serial.printf("-[t]-- Time ---\n\rTime:%s  Date:%s day:%d\n\r", getPRoperty(HHMM).c_str(), getPRoperty(DMY).c_str(), timeinfo.tm_wday); cmd='d';}
+        else if (cmd=='T') { Serial.println("-[T]-- Test stepper ---"); calibStp.testStepper=!calibStp.testStepper; cmd='d';}
+        else if (cmd=='C') { Serial.println("-[C]-- Calibration ---"); Serial.println("Mode calibration turn active."); calibStp.turnCalRun=1; cmd='d'; }
+        else if (cmd=='c') { Serial.println("-[c]-- Calibration ---"); Serial.println("Mode calibration position active."); calibStp.autoCalRun=1; cmd='d'; }
+        else if (cmd=='>') { Serial.printf("-[>]-- Move CCW ---\n\rStepper is moving relative (%ld) step\n\r", (Confwwm.config.oneTurnInStep/10));  stepper.move((Confwwm.config.oneTurnInStep/10)); cmd='d';}
+        else if (cmd=='<') { Serial.printf("-[<]-- Move ACW ---\n\rStepper is moving relative (%ld) step\n\r", (Confwwm.config.oneTurnInStep/-10));  stepper.move((Confwwm.config.oneTurnInStep/-10)); cmd='d';}
+        else if (cmd=='#') { Serial.println("-[#]-- Reset Edge ---"); calibStp.resetEdge(); cmd='d';}
+        else if (cmd=='-') { Serial.printf("-[-]-- Move ---\n\rStepper is moving relatif to %ld setps\n\r", (Confwwm.config.oneTurnInStep*-1)); stepper.move((Confwwm.config.oneTurnInStep*-1)); cmd='d';}
+        else if (cmd=='0') { Serial.println("-[0]-- Move ---\n\rStepper is moving absolute to 0 step\n\r");stepper.moveTo(0); cmd='d';}
+        else if (cmd=='1') { Serial.printf("-[2]-- Move ---\n\rStepper is moving relatif to %ld steps\n\r", (Confwwm.config.oneTurnInStep*1)); stepper.move(Confwwm.config.oneTurnInStep*1); cmd='d'; }
+        else if (cmd=='m') { 
+          Serial.printf("-[m]-- Motor ---\n\rCurrent postion:%ld  Speed:%f isRun:%s isNorth:%d \n\r",stepper.currentPosition(), stepper.speed() , ((stepper.isRunning()==1)?("Yes"):("No")), calibStp.isAtNoth);  cmd=' ';
+          Serial.printf("1Turn:%ld target:%ld ccwl:%ld ccwh:%ld acwl:%ld acwh:%ld checkMean:%ld \n\r", Confwwm.config.oneTurnInStep, stepper.targetPosition(), calibStp.ccwl, calibStp.ccwh, calibStp.acwl, calibStp.acwh, calibStp.checkMean());
+        }
+        else if (cmd=='z') { Serial.printf("-[z]-- Move ---\n\rStepper move to CheckMean:%ld\n\r",calibStp.checkMean());  calibStp.forceZero(calibStp.checkMean()); cmd='d';}
+        else if (cmd=='g') { Serial.printf("-[g]-- Http ---\n\rGet:%s/web0.jpg image on server\n\r", Confwwm.config.ImageHttpEa); qmsgstuct dmv {normal, param, 0, web}; xQueueSend(qDsp, &dmv, 0); cmd='d';}
+        else if (cmd=='p') { Serial.println("-[p]-- Power ---\n\rChargeur switch OFF"); digitalWrite(pwrP5V, LOW); cmd='d';}
+        else if (cmd=='P') { Serial.println("-[P]-- Power ---\n\rChargeur switch ON"); digitalWrite(pwrP5V, HIGH); cmd='d';}
+        else if (cmd=='q') { Serial.println("-[q]-- Power ---\n\rBackup switch OFF"); digitalWrite(pwrS5V, LOW); cmd='d';}
+        else if (cmd=='Q') { Serial.println("-[Q]-- Power ---\n\rBackup switch ON"); digitalWrite(pwrS5V, HIGH); cmd='d';}
+        else if (cmd=='w') { Serial.println("-[w]-- Epaper ---\n\rReboot display"); setupDisplay(); cmd=' ';}
+        else { Serial.printf("-[%c]-- Command not found. Serial is stopped\n\r",cmd); }
       }
-    } 
-  } else {
-    // Append reconnection
-    WifiError++;
-    // Resart Wifi connect if lost more than 1 hour
-    if ( wifiCxHandle == NULL && WifiError>3600 ){
-      xTaskCreatePinnedToCore(&wifiTask, "wifiTask", 8096,  NULL, WIFI_TASK_PRIORITY,  &wifiCxHandle, app_cpu);
     }
   }
+}
 
-  // Call wifi loop % mqtt
+//-------------  Main task  ------------------------------------
+void loop(void) {
+  // brownout detector
+  vddUsb = analogRead(pinAo); // Detect if USB power is down
+  if ( vddUsb < lowLimit) {
+    if ( wdogPwr.isFree() ) {
+      LOG("%s -Broutput detected.",getPRoperty(HHMM).c_str());
+      digitalWrite(pwrS5V, HIGH);
+      long rest = stepper.currentPosition() % Confwwm.config.oneTurnInStep;
+      wdogPwr.set( 60000 ); // 60sec/turn max to go at rest position after that cut off
+      stepper.move(-rest); // sent dial at correct position.
+      mqttPublish("Mqtt", "Connection", "false");
+    } 
+  }
+
+  // Stop in case of every thing is ok -> Lipo set to switch off
+  if ( (eDsp.getScreen()==STOP && calibStp.isAtNoth ) || wdogPwr.isFinished() ) {
+     if (digitalRead(pwrS5V)==HIGH) LOG("%s -Switch power OFF.",getPRoperty(HHMM).c_str());
+     digitalWrite(pwrS5V, LOW);  // Switch main power Off
+    // return;
+  }
+
+  // Glass Presente
+  if ( digitalRead(pinGl)==HIGH) glassOk.set(false);
+  else glassOk.set(true);
+
+  // Call wifi loop
   frame.loop();
 
   // Mqtt 
   mqttClient.loop();
 
-  // Get Serial commands
-	while (Serial.available() > 0) {
-	  uint8_t c = (uint8_t)Serial.read();
-	  if (c != 13 && c != 10 ) {
-      cmd = c;
-    } else {
-      if (c==13) {
-        if (cmd=='h') { Serial.println("- Help info=>\n\r  -i: info\n\r  -r: reboot\n\r  -d: display\n\r  -s: vddUsbLow\n\r  -q/w: Pwr hi/low\n\r  -t: http\n\r  -c/C: Calib.m/A\n\r  -0/1/2: Move stepper\n\r  -g/p: Debug\n\r");}
-			  else if (cmd=='i') { Serial.printf("Heap:%u IP:%s \n\r",ESP.getFreeHeap(), WiFi.localIP().toString().c_str() ); }
-        else if (cmd=='r') { ESP.restart(); }
-        else if (cmd=='s') { Serial.println("vddUsl low"); vddUsb=3000; }
-        else if (cmd=='t') { cmd=' '; httpGetFile(Confwwm.config.ImageFileEa); }
-        else if (cmd=='c') { Serial.println("Mode calibration manuel active.");  calibStp.manuCalRun=1; cmd=' '; }
-        else if (cmd=='C') { Serial.println("Mode calibration auto.  active."); calibStp.autoCalRun=1; cmd=' '; }
-        else if (cmd=='1') { stepper.moveTo(calibStp.oneTurnStep*2); cmd=' ';}
-        else if (cmd=='0') { stepper.moveTo(0); cmd=' ';}
-        else if (cmd=='2') { stepper.moveTo(calibStp.oneTurnStep*5), cmd=' '; }
-        else if (cmd=='g') { Serial.printf("Pos:%ld  sp:%f isRun:%d \n\r",stepper.currentPosition(), stepper.speed(), stepper.isRunning());  cmd=' ';}
-        else if (cmd=='p') { Serial.printf("%d manuCalRun=%d Click=%d Pwr=%d \n\r", timeinfo.tm_sec, calibStp.manuCalRun, LIS3DH_Click , vddUsb);  cmd=' '; }
-        else { Serial.printf("Stop serial: %s \n\r",version); }
-      }
-		}
-  }
+  // Get Serial commands from serial
+  serialInput();
 
   // Is alive executed every 1 sec.
   if (millis() - previousMillis > 1000L) {
@@ -476,46 +620,131 @@ void loop(void) {
 #ifdef LED
     digitalWrite(EspLedBlue, !digitalRead(EspLedBlue));
 #endif
-   if (eDsp.screen==STOP)
-      return;
-
     getLocalTime(&timeinfo, 0);
-
-    if (mqttUsed && (timeinfo.tm_sec%15)==0 ) {
-      if (!mqttClient.connected())
-        mqttReconnect();
+    
+    // Wifi status
+    wifiSt = WiFi.status();
+    if ( (timeinfo.tm_min % 2==0) && timeinfo.tm_sec == 30) {
+      if ((wifiSt != WL_CONNECTED) ) {
+        wifiLost++;
+        if (wifiLost == 2 ) {
+          LOG("%s WiFi connection is lost. cnt:%dr",getPRoperty(HHMM).c_str(), wifiLost);
+          WiFi.disconnect();
+        }
+        if (wifiLost == 4) {
+          if (WiFi.reconnect()) {
+            LOG("%s WiFi reconnect OK (%d).",getPRoperty(HHMM).c_str(), wifiLost);
+            wifiLost = 0;
+          }
+        }
+        if (wifiLost>10) wifiLost=0;
+      }
     }
 
-    // Calibre is running
-    bool CalIsOk = calibStp.CalibrationFinished();
+    // Prepare Display 
+    qmsgstuct dmv {normal, day, 0, dsp};
 
-      // Adafruit_LIS3DH
-    if (LIS3DH_Present) 
-      LIS3DH_Click = lis3dh->getClick();
+    // Calibre is running (Start autoCalibration at begining) if dome present
+    bool CalIsOk = false;
+    if ( glassOk.get()) 
+      CalIsOk = calibStp.CalibrationFinished();
+    if (calibStp.autoCalRun!=0  || calibStp.turnCalRun!=0 || calibStp.testStepper) {
+        LOG("pCal:%d tCal:%d Ccw:%c, cPos:%ld tgt:%ld moy:%ld ccwl:%ld ccwh:%ld acwl:%ld acwh:%ld", 
+              calibStp.autoCalRun, 
+              calibStp.turnCalRun, 
+              ((calibStp.dirCcw)?('T'):('F')), 
+              stepper.currentPosition(), 
+              stepper.targetPosition() ,
+              calibStp.mean,
+              calibStp.ccwl, 
+              calibStp.ccwh, 
+              calibStp.acwl, 
+              calibStp.acwh);
+    }
 
-    if ( CalIsOk && !stepper.isRunning() ) {
-      // TOC TOC detected
-      if (LIS3DH_Click!=0) {
-        //Serial.printf("LIS3DH_Click:0x%X \n\r", LIS3DH_Click);
-        if (Confwwm.config.clickMode==0) { tocAction (1);}
-        if (Confwwm.config.clickMode==1) { tocAction (5);}
-        if (Confwwm.config.clickMode==2) { tocAction (timeinfo.tm_hour);}
+    // Day or Night with 60sec hysteresis
+    if (CalIsOk) {
+      lux = analogRead(pinAd); 
+      if (lux < Confwwm.config.dayTwilight ) {
+        if (dayModeCnt<60) dayModeCnt++;
+        else dayMode.set(false);
       } else {
-        if (Confwwm.config.clickMode==2 && timeinfo.tm_min%30==0 && timeinfo.tm_sec==0) { 
-          clockAction (timeinfo.tm_hour,timeinfo.tm_min);
-        }
+        if (dayModeCnt>-60) dayModeCnt--;
+        else dayMode.set(true);
       }
-    } 
-  
-    wifiSt = WiFi.status();
+    }
 
-    // Push to Display queue. from 0 to 86399 second
-    int tsec =  timeinfo.tm_hour * 3600 + timeinfo.tm_min * 60 + timeinfo.tm_sec;
-    if (tsec==0) // at // 00:00 Get easter eggs
-      httpGetFile(Confwwm.config.ImageFileEa);
-    dsp dmv {tsec, normal};
-    if (!xQueueSend(qDsp, &dmv, 0)) 
-       xQueueReset(qDsp);
-  }
+    // NTQQ server test every 15sec
+    if ((timeinfo.tm_sec%15)==0 && wifiSt==WL_CONNECTED ) {
+      if ( strlen(Confwwm.config.mqttServer) > 2 ) {
+        uint8_t tempo = Confwwm.myCrc8((uint8_t*)Confwwm.config.mqttServer, 59);
+        if (tempo != mqttCrc8) {
+          mqttCrc8 = tempo;
+          MqttIn = "in"+String(frame.config.HostName);
+          MqttOut = "out"+String(frame.config.HostName);
+          mqttClient.setServer(Confwwm.config.mqttServer, Confwwm.config.mqttPort);
+          mqttClient.setCallback(mqttCallback); 
+        }
+        if (!mqttClient.connected())
+          mqttReconnect();
+      } 
+    }
+
+    // Adafruit_LIS3DH
+    if (lis3dhPresent) 
+      lis3dhClick = lis3dh->getClick();
+
+    if (glassOk.get()) {
+      if ( CalIsOk && !stepper.isRunning() ) {
+        // TOC TOC detected
+        if (lis3dhClick!=0) {
+          if (Confwwm.config.clickMode==TOC_1TB) { tocAction (1);}
+          if (Confwwm.config.clickMode==TOC_5TB) { tocAction (5);}
+          if (Confwwm.config.clickMode==TOC_HTB) { tocAction (timeinfo.tm_hour);}
+        } else {
+          if (Confwwm.config.actionNight==1 || dayMode.get() ) {
+            if (Confwwm.config.actionNormal==ACT_T60 && timeinfo.tm_min==0 && timeinfo.tm_sec==0) clockAction (timeinfo.tm_hour,timeinfo.tm_min);
+            if (Confwwm.config.actionNormal==ACT_T30 && timeinfo.tm_min%30==0 && timeinfo.tm_sec==0) clockAction (timeinfo.tm_hour,timeinfo.tm_min);
+            if (Confwwm.config.actionNormal==ACT_T01 && timeinfo.tm_sec==0) clockAction (timeinfo.tm_hour,timeinfo.tm_min,timeinfo.tm_sec);
+            if ( (timeinfo.tm_hour%3)==0 && timeinfo.tm_min==0 && timeinfo.tm_sec==30 ) {
+              LOG("%s -checkMean position:%ld and forceZero", getPRoperty(HHMM).c_str(), calibStp.checkMean());
+              calibStp.forceZero(calibStp.checkMean());
+            }
+          }
+        }
+      } 
+    } else {
+      if (lis3dhClick!=0) {
+        dmv.opt=param; // Display setup pages
+      }
+    }
+
+    // Stop Lipo charging at 00:01 + Get easter eggs
+    if (timeinfo.tm_hour==0 && timeinfo.tm_min==1 && timeinfo.tm_sec==55 && wdogPwr.isArmed()==false) { 
+      LOG("%s +Start Charging + UTC time adjustement + WebImage",getPRoperty(HHMM).c_str());
+      digitalWrite(pwrP5V, LOW);    // Stop lipo charging
+      if ( !wdogPwr.isArmed()) {
+        dmv.evt = web; // Get httpWebImage
+      }
+    }
+
+    // Start Lipo changing ONLY SUNDAY AT 18:02.45
+    if (timeinfo.tm_wday==0 && timeinfo.tm_hour==18 && timeinfo.tm_min==2 && timeinfo.tm_sec==45 ) { 
+      LOG("%s +Start LIPO charging and get time",getPRoperty(HHMM).c_str());
+      digitalWrite(pwrP5V, HIGH);    // START lipo chaging
+    }
+
+    // Task manager 
+    if (dayMode.get()==false) dmv.opt=night;
+    if (wdogPwr.isArmed()) dmv.md=stop;
+    if (!xQueueSend(qDsp, &dmv, 0)) {
+      xQueueReset(qDsp);
+    }
+
+    // test is dayMode or glass have changed
+    if (mqttClient.connected()) {
+      if (dayMode.isQ()) mqttPublish("Sensor", "Daylight", String(dayMode.get()));
+      if (glassOk.isQ()) mqttPublish("Sensor", "GlassP", String(glassOk.get())); 
+    }
+  } // second
 }
-

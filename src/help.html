@@ -140,7 +140,7 @@
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Send immediate command (List of commands)<ol>
+					<td style="height: 13px;">Send immediate command (list of commands)<ol>
 							<li> <b>param</b> -> Show param. on ePaper</li>
 							<li> <b>p5turn</b> -> Clockwise 5 turns</li>
 							<li> <b>n5turn</b> -> Anti clockwise 5 turns</li>
@@ -154,7 +154,7 @@
 					<td style="text-align: center; height: 13px;">-</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Broker IP asdress (only IP is allowed)</td>
+					<td style="height: 13px;">Broker IP address (only IP is allowed)</td>
 					<td style="height: 13px;">BroAdr</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
@@ -196,31 +196,37 @@
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Number of Step per turn</td>
+					<td style="height: 13px;">Threshold Photo-resistor day night</td>
+					<td style="height: 13px;">DaySen</td>
+					<td style="text-align: center; height: 13px;">X</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Number of Steps for one turn</td>
 					<td style="height: 13px;">StpTun</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Number of step to detect the bad direction during calibration</td>
+					<td style="height: 13px;">Number of steps to detect the wrong direction during calibration</td>
 					<td style="height: 13px;">BadDir</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Inaccuracy in number of step.</td>
+					<td style="height: 13px;">Inaccuracy in number of steps.</td>
 					<td style="height: 13px;">InaStp</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Sismograph sensitivity (1-255)</td>
+					<td style="height: 13px;">Seismograph sensitivity (1-255)</td>
 					<td style="height: 13px;">SisSen</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Sismograph action after knock</td>
+					<td style="height: 13px;">Seismograph action after knock</td>
 					<td style="height: 13px;">SisKno</td>
 					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">X</td>
@@ -228,26 +234,38 @@
 				<tr>
 					<td>Get if Wifi connection is done</td>
 					<td>Wifist</td>
-					<td style="text-align: center;">X</td>
 					<td style="text-align: center;">-</td>
+					<td style="text-align: center;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Get if server MQTT is connected</td>
+					<td style="height: 13px;">Get if server MQTT is connected.</td>
 					<td style="height: 13px;">Mqttst</td>
-					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Get current stepping motor position</td>
+					<td style="height: 13px;">Get current stepping motor position.</td>
 					<td style="height: 13px;">Step</td>
-					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 				<tr style="height: 13px;">
-					<td style="height: 13px;">Get if rest position is detected</td>
+					<td style="height: 13px;">Get if north position is detected.</td>
 					<td style="height: 13px;">Hall</td>
-					<td style="text-align: center; height: 13px;">X</td>
 					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Get if the glass dome is detected.</td>
+					<td style="height: 13px;">GlassP</td>
+					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
+				</tr>
+				<tr style="height: 13px;">
+					<td style="height: 13px;">Get photo-resistor value (0:dark 4096:bright)</td>
+					<td style="height: 13px;">PhotoR</td>
+					<td style="text-align: center; height: 13px;">-</td>
+					<td style="text-align: center; height: 13px;">X</td>
 				</tr>
 			</tbody>
 		</table>
@@ -262,7 +280,7 @@
 				<tr style="height: 11px;">
 					<td style="height: 11px;">Http<br>Get</td>
 					<td style="height: 11px;text-align: left;">http://IP/wwm?Title=</td>
-					<td style="text-align: left; height: 11px;">Return host name defined in config file. Define the MQTT
+					<td style="text-align: left; height: 11px;">Return host names defined in config file. Define the MQTT
 						Tag (in<i>HOSTNAME</i>, out<i>HOSTNAME</i>).</td>
 				</tr>
 
@@ -283,15 +301,18 @@
 					<td style="height: 11px;">Mqtt<br>Received</td>
 					<td style="height: 11px;text-align: left;">Tag: outWatchWinderMax<br>Msg:
 						{"From":"Knock","Cmd":"4098"}</td>
-					<td style="text-align: left; height: 11px;">Received information from WWM motor moving after an user
-						action
+					<td style="text-align: left; height: 11px;">Received information from WWM motor moving after a user
+						action.
 				</tr>
 			</tbody>
 		</table>
 		The simple tool <a class='button' href='https://www.jensd.de/wordpress/'>MQTT.fx</a> was used to communicate
-		throught Mosquitto
-		An open source MQTT broker. This broker was installed on The Raspberry Pi 4 Model B device.
+		through Mosquitto (open source MQTT broker). This broker was installed on The Raspberry Pi 4 Model B device.
 
+		<p><b>- SPI Flash file system meno - </b></p>
+		There are some embedded images into the Eps32 File System. You can add or delete image0.jpg to image9.jpg with the specialist tools (Upload files to SPI Flash File System).<br>
+		Some other image web0.jpg to web9.jpg will be downloading every day at 0 a.m. if server address is defined. The imageX and webX JPG image will be displayed alternatively between clock.
+		
 	</center>
 </body>
 

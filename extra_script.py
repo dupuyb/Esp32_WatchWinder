@@ -1,8 +1,17 @@
 #!/usr/bin/python3
+
+#  python Convertor html to Cpp  installed in plateformio.ini and convert at compile.
+#  extra_scripts = pre:extra_script.py
+#  custom_in_html = src/wwmconfig.html
+#  custom_out_h = src/wwmconfig.h
+#
 import sys, getopt, datetime, pathlib, re
 from tempfile import mkstemp
 from shutil import move
 from os import remove
+
+# desabled pylint ...
+# pylint: disable=unused-variable
 
 # Pattern arroud KEY here ##Key##
 REGPAT=r"%%\w*%%"
@@ -16,7 +25,7 @@ def help(opt):
     sys.exit(opt)
 
 def replace(source_file_path, code):
-    fh, target_file_path = mkstemp()
+    fh,target_file_path = mkstemp()
     cpok=True
     error=True
     with open(target_file_path, 'w') as target_file:
@@ -85,7 +94,7 @@ def buildEsp32Cpp(inputfile, outputfile):
     ln = conpressHtml(inputfile)
     for x in range(0, len(ln)):
         fo.write(str(ln[x])+"\n")
-    fo.write("\n// -------- Web tranlat wrapper Get Set  -------------\n")
+    fo.write("\n// -------- Web translat wrapper Get Set  -------------\n")
     tg, strlen = findPattern(inputfile)
     strlen = strlen + len(REGS) + len(REGE) + 1
     for x in range(0, len(tg)):

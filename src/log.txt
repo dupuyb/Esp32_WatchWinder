@@ -1,1 +1,23 @@
 02/06/2020 - 0.6.4 - Faire les tests definitifs 
+10/06/2020 - 0.7.0 - Append two sensor ( Glasses + Twilight ) 
+
+A faire image et message dynamique fichier DspEpaper
+----------------------------------------------------
+Stop    Msg msg[] = {{fsb9, 0, 13, "WATCH"}, {fsb9, 130, 100, "WINDER"}}; 
+        epaperImage("/rosace.jpg", msg, 2);
+        epaperIcon(iconSlepping, 25, 25, false);
+
+Nuit    epaperImage("/matter.jpg", NULL, 0);
+        epaperIcon(iconSlepping, 25, 25, false);
+
+Clock   epaperImage("/clockp.jpg", msg, 2);
+        + HH:MM + needle
+
+case3   web0.jpg      
+
+AccesPt     Msg msg[] = {{fsb9, 100, 55, "Access Point"}, {fsb9, 110, 75, "is enabled..."}};
+            epaperImage("/duduap.jpg", msg, 2);
+        OR
+            Msg msg[] = {{fs18, 130, 75, getProperty(HHMM).c_str()}};
+            epaperImage("/gyro.jpg", msg, 1);
+
