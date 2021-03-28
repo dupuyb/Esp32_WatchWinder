@@ -64,7 +64,7 @@ typedef enum {
   ICON= 0, 
   WIFI= 1, 
   HHMM= 3,
-  DMY = 4,
+  JMHMS = 4,
   MAC = 5,
   VER = 6,
   SPOS= 7,
@@ -99,7 +99,7 @@ public:
         display->fillRect(box_x, box_y, box_w, box_h, getColorBgd(invert));
         display->setFont(fs18);
         display->setCursor(box_x, 55);
-        display->print(getProperty(DMY).c_str());
+        display->print(getProperty(DDMM).c_str()); //! OLD DMY
         display->setFont(fsb24); //! OLD fsb24
 //77 display->setTextSize(2); // Append x2
         display->setCursor(box_x + 30, 98);
@@ -129,7 +129,7 @@ public:
 
     bool imageExist(String filename) {
         bool ret=true;
-        if (  SPIFFS.begin()==false || SPIFFS.exists(filename)==false ) {
+        if (  /*SPIFFS.begin()==false ||*/ SPIFFS.exists(filename)==false ) {
           ret = false;
         }
         return ret;
@@ -137,7 +137,7 @@ public:
 
     bool epaperImage(String filename, Msg msg[], int nbrMsg) {
         bool ret=false;
-        if (SPIFFS.begin() == true) {
+        if ( SPIFFS.exists(filename) == true) {
             if (imageLoader.load(filename)) {
                 display->drawBitmap(imageLoader.getBuffer(), 0, 0, GxGDEW0213I5F_HEIGHT, GxGDEW0213I5F_WIDTH, getColorTxt(invert));
                 epaperText(msg, nbrMsg);

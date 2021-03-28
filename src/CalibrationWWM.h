@@ -10,6 +10,21 @@ public:
       stepper=stp;
     }
 
+    void irq(int val) {
+      long cp = stepper->currentPosition();
+      long tp = stepper->targetPosition();
+      dirCcw = tp > cp;
+      if (val==HIGH) { 
+        if (dirCcw) ccwh = cp;
+        else acwh = cp;
+        isAtNoth = false;
+      } else { // We are outside of the detector --> reset edge high to prevent turn-around 
+        if (dirCcw) { ccwl = cp; ccwh = NV; }
+        else { acwl = cp; acwh = NV; }
+        isAtNoth = true;
+      }
+    }
+
     void init(float speed, float speedMax, float accleration) {
       stepper->setMaxSpeed(speedMax);
       stepper->setAcceleration(speed);
@@ -89,11 +104,13 @@ public:
       }
     }
 
-    void forceZero(long val){
+    boolean forceZero(long val){
       if (val!=NV) {
         resetNorth();
         autoCalRun=2;
+        return true;
       }
+      return false;
     }
 
     long checkMean() {

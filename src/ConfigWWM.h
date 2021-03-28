@@ -78,7 +78,6 @@ public:
   }
 
   void loadConfigurationJson() {
-    SPIFFS.begin();
     File file = SPIFFS.open(fileconfigwwm, "r");
     if (!file) {
       Serial.println(F("Configuration ConfigWWM file is absent."));

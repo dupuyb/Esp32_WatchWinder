@@ -1,23 +1,34 @@
 02/06/2020 - 0.6.4 - Faire les tests definitifs 
 10/06/2020 - 0.7.0 - Append two sensor ( Glasses + Twilight ) 
+..
+25/03/2021 - 1.1.8 - Replace SPIFFS.begin() by SPIFFS.exist(path) 
 
-A faire image et message dynamique fichier DspEpaper
-----------------------------------------------------
-Stop    Msg msg[] = {{fsb9, 0, 13, "WATCH"}, {fsb9, 130, 100, "WINDER"}}; 
-        epaperImage("/rosace.jpg", msg, 2);
-        epaperIcon(iconSlepping, 25, 25, false);
+It's super-annoying but here's what I use as a workaround:
 
-Nuit    epaperImage("/matter.jpg", NULL, 0);
-        epaperIcon(iconSlepping, 25, 25, false);
+~/.platformio/packages/toolchain-xtensa32/bin/xtensa-esp32-elf-addr2line \
+  -pfiaC \
+  -e .pio/build/$ENV/$PROJECT.elf \
+  $ADDRESS
+Replace $ENV, $PROJECT, and $ADDRESS with appropriate values.
 
-Clock   epaperImage("/clockp.jpg", msg, 2);
-        + HH:MM + needle
+Debugage Backtrace esp32 (IDF-specific features)
+~/.platformio/packages/toolchain-xtensa32/bin/xtensa-esp32-elf-addr2line -pfiaC -e .pio/build/esp32dev/firmware.elf 
+0x4019db5c:0x3ffc04b0 0x4008182d:0x3ffc0560 0x40086821:0x3ffc0580 0x4008545d:0x3ffba190 0x4008402b:0x3ffba10
+- V 1.1.8 (function calibStp.irq(digitalRead(pinSp)); in positionCHG() ) sample:
+0x4019db5c: AccelStepper::currentPosition() at /Users/dupuyb/Google Drive/Dev/PlatformIO/Projects/Esp32_WatchWinder/.pio/libdeps/esp32dev/AccelStepper_ID265/src/AccelStepper.cpp:83
+0x4008182d: __onPinInterrupt at /Users/dupuyb/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.c:274
+0x40086821: _xt_lowint1 at /home/runner/work/esp32-arduino-lib-builder/esp32-arduino-lib-builder/esp-idf/components/freertos/xtensa_vectors.S:1154
+0x4008545d: spi_flash_op_block_func at /home/runner/work/esp32-arduino-lib-builder/esp32-arduino-lib-builder/esp-idf/components/spi_flash/cache_utils.c:203
+0x4008402b: ipc_task at /home/runner/work/esp32-arduino-lib-builder/esp32-arduino-lib-builder/esp-idf/components/esp32/ipc.c:62
 
-case3   web0.jpg      
-
-AccesPt     Msg msg[] = {{fsb9, 100, 55, "Access Point"}, {fsb9, 110, 75, "is enabled..."}};
-            epaperImage("/duduap.jpg", msg, 2);
-        OR
-            Msg msg[] = {{fs18, 130, 75, getProperty(HHMM).c_str()}};
-            epaperImage("/gyro.jpg", msg, 1);
-
+Install copy/past on xfce autocutsel
+- Install:
+sudo apt-get install autocutsel
+- Run vi /home/USER/.vnc/xstartup and add this line:
+autocutsel -fork
+- like this:
+#!/bin/bash
+xrdb $HOME/.Xresources  
+autocutsel -fork  
+startxfce4 &  
+- Restart vncserver
