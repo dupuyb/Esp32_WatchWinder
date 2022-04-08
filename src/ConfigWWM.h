@@ -92,7 +92,7 @@ public:
       config.daylightOffset_sec = rootcfg["daylightOffset_sec"] | 3600;
       strlcpy(config.ntpServer, rootcfg["ntpServer"] | "pool.ntp.org", sizeof(config.ntpServer));
       // WWM parmerters
-      config.oneTurnInStep = rootcfg["oneTurnInStep"] | 4098;
+      config.oneTurnInStep = rootcfg["oneTurnInStep"] | 4098; // 4076
       config.autoCalibationOut = rootcfg["autoCalibationOut"] | 600;
       config.autoCalibrationStep = rootcfg["autoCalibrationStep"] | 50;
       // device behaviour

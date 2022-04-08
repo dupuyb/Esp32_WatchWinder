@@ -67,7 +67,7 @@ SPIClass spi(2);                                         // mapped on PIN_SPI_SC
 GxIO_Class io(spi, PIN_SPI_CS, PIN_SPI_DC, PIN_SPI_RST); // arbitrary selection of 17, 16
 GxEPD_Class display(io, PIN_SPI_RST, PIN_SPI_BUSY);      // arbitrary selection of (16), 4
 
-// Stepper Gear reduction	1/64 (see note)  64*64 = 4096 per turn
+// Stepper Gear reduction	1/64 (see note)  64*64 = 4096 per turn (real after gear ratio 4075.7728 !!!)
 #define stepsPerRevolution 8
 #define pinU1 16 // Selenoid
 #define pinU2 17 // Selenoid

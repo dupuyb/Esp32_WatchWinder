@@ -13,7 +13,9 @@ Replace $ENV, $PROJECT, and $ADDRESS with appropriate values.
 
 Debugage Backtrace esp32 (IDF-specific features)
 ~/.platformio/packages/toolchain-xtensa32/bin/xtensa-esp32-elf-addr2line -pfiaC -e .pio/build/esp32dev/firmware.elf 
+
 0x4019db5c:0x3ffc04b0 0x4008182d:0x3ffc0560 0x40086821:0x3ffc0580 0x4008545d:0x3ffba190 0x4008402b:0x3ffba10
+
 - V 1.1.8 (function calibStp.irq(digitalRead(pinSp)); in positionCHG() ) sample:
 0x4019db5c: AccelStepper::currentPosition() at /Users/dupuyb/Google Drive/Dev/PlatformIO/Projects/Esp32_WatchWinder/.pio/libdeps/esp32dev/AccelStepper_ID265/src/AccelStepper.cpp:83
 0x4008182d: __onPinInterrupt at /Users/dupuyb/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.c:274
