@@ -1,7 +1,7 @@
 #ifndef wwmconfig_h
 #define wwmconfig_h
 
-//---- Start Generated from src/wwmconfig.html file --- 2022-10-15 12:07:06.839878
+//---- Start Generated from src/wwmconfig.html file --- 2023-01-09 16:15:09.261964
 const char HTTP_WWM[] PROGMEM = "<!DOCTYPE html><html><style>.cmt {text-align: justify;width: 30em;padding: 10px 8px 2px;display: block;}.r12 {text-align: right;width: 12em;display: inline-block;}.l12 {text-align: left;width: 12em;display: inline-block;}.l4 {text-align: center;width: 10em;display: inline-block;font-size: 80%;border: 1px dotted black;overflow: hidden;max-width: 20ch;}legend {background-color: rgb(92, 81, 81);color: #fff;padding: 3px 6px;}.myBt {font-weight: bold;text-align: center;}.myBt:hover {background-color: #60ff05;}.myBttt:active {position: relative;}</style><script></script><head><meta charset='utf-8'><title>%%Title%%</title><meta content='width=device-width' name='viewport'></head><body><center><header><h1 style='background-color: lightblue;'>%%Title%%</h1></header><form action='/wwm' method='post' ><fieldset><legend> Current state </legend><div class='cmt'>The Wifi link is %%Wifist%%, and the server MQTT is %%Mqttst%%. Stepping motor position is at %%Step%% step. The Magnet north sensor is %%Hall%%. The glass dome is %%GlassP%%. The photo-resistor module is at %%PhotoR%% (0:dark 4095:bright) .SPI Flash File System total/used %%FsFree%% Kbytes</div></fieldset><fieldset><legend> WWM Configurator </legend><div style=' width: 40em; display: block; '><div class='cmt'><b>WWM Configurator</b> allows to change some basic parameters. This parameters are stored into file configWWM.json located in EPROM embedded Filesystem.</div><div class='r12'><label>Feild </label></div><div class='l12'><label>Values</label></div><div class='l4'>Actual value</div><div class='cmt'><li>Append Network Time Protocol server name.</li></div><div class='r12'><label for='SrvNtp'>Server NTP :</label></div><div class='l12'><input type='text' name='SrvNtp'maxlength='30' value='%%SrvNtp%%'></div><div class='l4'>%%SrvNtp%%</div><div class='cmt'><li>Greenwich Mean Time offset and daylight saving time (DST) values are in seconds (i.e. -21600 equals -7 hours)</li></div><div class='r12'><label for='GmtOff'>GMT offset :</label></div><div class='l12'><input type='number' name='GmtOff' maxlength='25' value='%%GmtOff%%'></div><div class='l4'>%%GmtOff%%</div><div class='r12'><label for='DayOff'>Daylight Offset :</label></div><div class='l12'><input type='number' name='DayOff' value='%%DayOff%%' maxlength='7'></div><div class='l4'>%%DayOff%%</div></div><div style=' width: 40em; display: block; '><div class='cmt'><li>Stepper motor parameters in number of step (Number of steps per turn is overwritten during the full calibration processus)</li></div><div class='r12'><label for='StpTun'>Step per turn :</label></div><div class='l12'><input type='number' name='StpTun' value='%%StpTun%%' placeholder='4098' maxlength='7'></div><div class='l4'>%%StpTun%%</div><div class='r12'><label for='BadDir'>Bad direction after :</label></div><div class='l12'><input type='number' name='BadDir' value='%%BadDir%%' placeholder='600' maxlength='7'></div><div class='l4'>%%BadDir%%</div><div class='r12'><label for='InaStp'>Inaccuracy +/- :</label></div><div class='l12'><input type='number' name='InaStp' value='%%InaStp%%' placeholder='50' maxlength='4'></div><div class='l4'>%%InaStp%%</div></div><div style=' width: 40em; display: block; '><div class='cmt'><li>WatchWinderMax general behaviour during the day</li></div><div class='r12'><label for='ActNor'>Action normal :</label></div>%%ActNor%%<div class='r12'><label for='MovNig'> Move even at night :</label></div>%%MovNig%%<p style='line-height: 1.0; font-size: 0.8em;'>Comment: In <b>Turn hours</b> one turn by hour <b>Clock hand turn</b> movement every 1 minutes.</p></div><div style=' width: 40em; display: block; '><div class='cmt'><li>Sensor Sensitivity and Action associate</li></div><div class='r12'><label for='DaySen'> Twilight (0-4096) :</label></div><div class='l12'><input type='number' name='DaySen' value='%%DaySen%%' placeholder='400' maxlength='4'></div><div class='l4'>%%DaySen%%</div><div class='r12'><label for='SisSen'>Sismograph (0-255) :</label></div><div class='l12'><input type='number' name='SisSen' value='%%SisSen%%' placeholder='50' maxlength='4'></div><div class='l4'>%%SisSen%%</div><div class='r12'><label for='SisKno'>Action after knock :</label></div>%%SisKno%%<p style='line-height: 1.0; font-size: 0.8em;'>Comment: In <b>current time</b> mode, turn alternately in the direction clockwise or anti-clockwise  </p></div><div style=' width: 40em; display: block; '><div class='cmt'><li>MQTT* Broker Profile Setting (Emty if not used)</li></div><div class='r12'><label for='BroAdr'>Broker Address :</label></div><div class='l12'><input type='text' name='BroAdr' maxlength='62' value='%%BroAdr%%'></div><div class='l4'>%%BroAdr%%</div><div class='r12'><label for='BroPor'>Broker Port :</label></div><div class='l12'><input type='number' name='BroPor' value='%%BroPor%%'  placeholder='1883' maxlength='7'></div><div class='l4'>%%BroPor%%</div><div class='r12'><label for='BroUse'>User name :</label></div><div class='l12'><input type='text' name='BroUse' value='%%BroUse%%' maxlength='30'></div><div class='l4'>%%BroUse%%</div><div class='r12'><label for='BroPwd'>Password :</label></div><div class='l12'><input type='text' name='BroPwd' value='%%BroPwd%%' maxlength='30'></div><div class='l4'>%%BroPwd%%</div><p style='line-height: 1.0; font-size: 0.8em;'>*Topics list and message are visible <a class='button' href='/help.html'>here</a></p></div><div style=' width: 40em; display: block; '><div class='cmt'><li>HTTP* Get server for web[0-9].jpg at 00:00 (Emty if not used)</li></div><div class='r12'><label for='HtpAdr'>Server Address :</label></div><div class='l12'><input type='text' name='HtpAdr' maxlength='62' value='%%HtpAdr%%'></div><div class='l4'>%%HtpAdr%%</div></div><div style='display: block;'><div class='cmt'>Send current configuration to the %%Title%%</div><div class='button'><button type='submit' class=\"myBt\">Overwrite current parameters</button></div></div></form></fieldset><fieldset><legend> Commands </legend><td>- Select one command in the list :</td><form action='/wwm' method='post' name='Cmd'><select name='Cmd'><option value='none'>None</option><option value='param'>Show param. on ePaper</option><option value='p5turn'>Clockwise 5 turns</option><option value='n5turn'>Anti clockwise 5 turns</option><option value='calturn'>Calibrate step/turn</option><option value='restpos'>Calib. Rest position</option><option value='reboot'>Reboot</option></select><button type='submit'>Valid</button></form><p style='line-height: 1.0; font-size: 0.8em;'>Remarks: some operations take a long time to complete. Wait for any selected tasks to finish. </p></fieldset><div class='cmt'><b>Some specialist facilities</b> are available on page :<a class='button' href='/'>Specialist tools</a> and the list of commands (Http, Mqtt and FS) are visible <a class='button' href='/help.html'>here</a>.</div></center></body></html>";
 //---- len : 6927 bytes
 //---- End Generated 
@@ -71,7 +71,7 @@ void   setGmtOff(String s) { Confwwm.config.gmtOffset_sec=s.toInt();  }
 char * getInaStp(bool m) { snprintf(strtmp, sizeof(strtmp), "%ld", Confwwm.config.autoCalibrationStep); return strtmp; }
 void   setInaStp(String s) { Confwwm.config.autoCalibrationStep=s.toInt(); } 
 char * getSisKno(bool m) { 
-  String rt;
+  static String rt;
   if (m)
    rt="<div class='l12'><select name='SisKno'>\
             <option value='1tb' "+ getTagSeletor1(TOC_1TB) +">1 turn / back</option>\n\
@@ -90,17 +90,17 @@ void   setSisKno(String s) {
   else if (s=="0tb") {Confwwm.config.clickMode=TOC_0TB;}
 }
 char * getActNor(bool m) {
-  String rt;
+  static String rtt;
   if (m) 
-    rt = "<div class='l12'><select name='ActNor'>\
+    rtt = "<div class='l12'><select name='ActNor'>\
             <option value='t60' "+ getTagSeletor2(ACT_T60) +">Turn hours</option>\n\
             <option value='t30' "+ getTagSeletor2(ACT_T30) +">Turn half an hour</option>\n\
             <option value='t01' "+ getTagSeletor2(ACT_T01) +">Clock hand turn</option>\n\
             <option value='t00' "+ getTagSeletor2(ACT_T00) +">Nothing</option>\n\
             </select></div><div class='l4'>"+getSeletor2(Confwwm.config.actionNormal)+"</div>\n";
   else 
-    rt=getSeletor2(Confwwm.config.actionNormal);
-  return (char*)rt.c_str();
+    rtt=getSeletor2(Confwwm.config.actionNormal);
+  return (char*)rtt.c_str();
 }
 void  setActNor(String s) {
    if (s=="t60") { Confwwm.config.actionNormal=ACT_T60;}
@@ -111,15 +111,15 @@ void  setActNor(String s) {
 String getTagSelector3(int v) { return ((Confwwm.config.actionNight==v)?("checked"):(""));}
 String getSelector3() { return ((Confwwm.config.actionNight)?("yes"):("no")); }
 char * getMovNig(bool m) {
-  String rt;
+  static String rtq;
   if (m)
-    rt = "<div class='l12'>\
+    rtq = "<div class='l12'>\
           <input type='radio' name='MovNig' value='yes' " + getTagSelector3(1) + "> yes \
           <input type='radio' name='MovNig' value='no' " + getTagSelector3(0) + "> no </div> \
     <div class='l4'>"+ getSelector3() +"</div>\n";
   else
-    rt=getSelector3();
-  return (char*)rt.c_str();
+    rtq=getSelector3();
+  return (char*)rtq.c_str();
 }
 void setMovNig(String s) {
   if (s=="yes") Confwwm.config.actionNight=1;
