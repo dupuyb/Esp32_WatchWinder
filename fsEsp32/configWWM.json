@@ -1,0 +1,1 @@
+{"gmtOffset_sec":-21600,"daylightOffset_sec":3600,"ntpServer":"pool.ntp.org","oneTurnInStep":4098,"autoCalibationOut":500,"autoCalibrationStep":50,"twilight":50,"clickThreshold":80,"clickMode":2,"mqttServer":"","mqttPort":1883,"mqttUser":"","mqttPasswd":"","ImageHttpEa":"http://192.168.1.117/watchwinder","ImageFileEa":"/web0.jpg"}
